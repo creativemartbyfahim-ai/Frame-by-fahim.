@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ফ্রেমে ছবি যুক্ত করুন</title>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a7a3b, #0f9d58);
+      font-family: system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #fff;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 18px 45px rgba(0,0,0,.25);
+      text-align: center;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0a7a3b;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    canvas {
+      width: 100%;
+      border-radius: 14px;
+      background: #eaeaea;
+      touch-action: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button, label {
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    label {
+      background: #0a7a3b;
+      color: #fff;
+    }
+
+    button {
+      background: #f1f3f4;
+    }
+
+    .download {
+      background: #0f9d58;
+      color: #fff;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="title">নিজের ছবিতে ফ্রেম যুক্ত করুন</div>
+  <div class="subtitle">ছবি টেনে ঠিক করুন, জুম করুন, তারপর ডাউনলোড</div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="controls">
+    <label>
+      ছবি আপলোড
+      <input type="file" id="upload" accept="image/*">
+    </label>
+    <button onclick="zoomIn()">＋</button>
+    <button onclick="zoomOut()">－</button>
+  </div>
+
+  <div class="controls">
+    <button class="download" onclick="downloadImage()">ডাউনলোড</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const frame = new Image();
+frame.src = "talib.png";
+
+let userImg = null;
+let scale = 1;
+let posX = 0;
+let posY = 0;
+let isDragging = false;
+let lastX = 0;
+let lastY = 0;
+let needsRedraw = true;
+
+frame.onload = () => {
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  render();
+};
+
+document.getElementById("upload").addEventListener("change", e => {
+  const img = new Image();
+  img.onload = () => {
+    userImg = img;
+    scale = Math.max(
+      canvas.width / img.width,
+      canvas.height / img.height
+    );
+    posX = (canvas.width - img.width * scale) / 2;
+    posY = (canvas.height - img.height * scale) / 2;
+    needsRedraw = true;
+  };
+  img.src = URL.createObjectURL(e.target.files[0]);
+});
+
+function render() {
+  if (needsRedraw) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (userImg) {
+      ctx.drawImage(
+        userImg,
+        posX,
+        posY,
+        userImg.width * scale,
+        userImg.height * scale
+      );
+    }
+
+    ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    needsRedraw = false;
+  }
+  requestAnimationFrame(render);
+}
+render();
+
+function zoom(factor) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const prevScale = scale;
+
+  scale = Math.min(3, Math.max(0.3, scale * factor));
+  posX = cx - (cx - posX) * (scale / prevScale);
+  posY = cy - (cy - posY) * (scale / prevScale);
+
+  needsRedraw = true;
+}
+
+function zoomIn() { zoom(1.1); }
+function zoomOut() { zoom(0.9); }
+
+canvas.addEventListener("pointerdown", e => {
+  isDragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!isDragging) return;
+  posX += e.clientX - lastX;
+  posY += e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  needsRedraw = true;
+});
+
+["pointerup","pointerleave","pointercancel"].forEach(ev =>
+  canvas.addEventListener(ev, () => isDragging = false)
+);
+
+function downloadImage() {
+  const link = document.createElement("a");
+  link.download = "framed-photo.jpg";
+  link.href = canvas.toDataURL("image/jpeg", 0.95);
+  link.click();
+}
+</script>
+
+</body>
+  </html>
